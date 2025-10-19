@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, timedelta
+import json
 
 # -----------------------------
 # PAGE CONFIG
@@ -10,17 +11,18 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="🏒 NHL Pick Tracker", layout="wide")
 
 # -----------------------------
-# GOOGLE SHEETS SETUP
+# GOOGLE SHEETS SETUP (via Streamlit Secrets)
 # -----------------------------
-SERVICE_ACCOUNT_FILE = "service_account.json"
-PICKS_SHEET_NAME = "NHL_Pick_Data"
-SCHEDULE_SHEET_NAME = "NHL_Schedule"
-
 scope = ["https://spreadsheets.google.com/feeds",
          "https://www.googleapis.com/auth/drive"]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT_FILE, scope)
+# Load service account from Streamlit secrets
+service_account_info = json.loads(json.dumps(st.secrets["service_account"]))
+creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(creds)
+
+PICKS_SHEET_NAME = "NHL_Pick_Data"
+SCHEDULE_SHEET_NAME = "NHL_Schedule"
 
 picks_sheet = client.open(PICKS_SHEET_NAME).sheet1
 schedule_sheet = client.open(SCHEDULE_SHEET_NAME).sheet1
