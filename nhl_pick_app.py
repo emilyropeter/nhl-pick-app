@@ -85,21 +85,37 @@ schedule_df = load_schedule()
 df_all = load_picks()
 
 # -----------------------------
-# DETERMINE CURRENT WEEK
+# DETERMINE CURRENT WEEK (based only on WeekStartDate)
 # -----------------------------
-current_week = None
-for w in schedule_df['Week'].unique():
-    week_start_str = schedule_df[schedule_df['Week']==w]['WeekStartDate'].iloc[0]
-    if get_week_status(week_start_str) == "Open":
-        current_week = w
-        break
-if current_week is None:
+today = datetime.today().date()
+
+# Make sure WeekStartDate is a date object
+schedule_df["WeekStartDate"] = pd.to_datetime(schedule_df["WeekStartDate"], errors="coerce").dt.date
+
+# Find the most recent week start date that’s before or equal to today
+past_weeks = schedule_df[schedule_df["WeekStartDate"] <= today]
+
+if not past_weeks.empty:
+    # Pick the latest available week start
+    current_week_start = past_weeks["WeekStartDate"].max()
+    current_week_row = schedule_df[schedule_df["WeekStartDate"] == current_week_start]
+    current_week = current_week_row["Week"].iloc[0]
+else:
     st.info("No active week found. Add a new week in the schedule.")
     current_week = "TBD"
 
-week_schedule = schedule_df[schedule_df['Week']==current_week].copy()
-week_schedule['WeekStatus'] = week_schedule['WeekStartDate'].apply(get_week_status)
-week_status = week_schedule['WeekStatus'].iloc[0] if not week_schedule.empty else "Open"
+# Prepare the week’s schedule
+week_schedule = schedule_df[schedule_df["Week"] == current_week].copy()
+
+# Mark the week as open (if it’s this week) or closed (if it’s old)
+if not week_schedule.empty:
+    week_start = pd.to_datetime(week_schedule["WeekStartDate"].iloc[0]).date()
+    if today < week_start + timedelta(days=7):
+        week_status = "Open"
+    else:
+        week_status = "Closed"
+else:
+    week_status = "Open"
 
 st.subheader(f"Week {current_week} - Status: {week_status}")
 
@@ -175,3 +191,4 @@ if not df_all.empty:
     st.dataframe(cumulative_leaderboard[["User","Accuracy %"]])
 else:
     st.info("No picks recorded yet.")
+
